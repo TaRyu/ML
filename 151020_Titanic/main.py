@@ -121,6 +121,21 @@ def test_data():
 data_test = test_data()
 
 
+class TestDataProcess(DataProcess):
+
+    """docstring for TestDataProcess"""
+
+    def __init__(self):
+        super(TestDataProcess, self).__init__()
+        self.data = data_test
+
+    def process_age(self):
+        bins = [0, 15, 45, 100]
+        cats = pd.cut(self.data.Age, bins)
+        self.data.Age = cats.labels
+        self.data.Age = self.scaler.fit_transform(self.data.Age)
+
+
 def knn():
     return neighbors.KNeighborsClassifier(10, weights='distance')
 
