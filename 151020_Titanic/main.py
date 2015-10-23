@@ -126,7 +126,7 @@ class TestDataProcess(DataProcess):
     """docstring for TestDataProcess"""
 
     def __init__(self):
-        super(TestDataProcess, self).__init__(self, data_test)
+        DataProcess.__init__(self, data_test)
         self.data = data_test
 
     def process_age(self):
