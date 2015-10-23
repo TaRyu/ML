@@ -14,12 +14,23 @@ def getdata():
     data_t = data.Survived
     return data_f, data_t
 
+
+def test_data():
+    data = pd.read_csv('data/test.csv')
+    data_f = pd.DataFrame(data, columns=[
+        'Pclass', 'Name', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Cabin', 'Embarked'])
+    return data_f
+
+
 data_train, data_train_label = getdata()
+data_test = test_data()
 n_samples = data_train.shape[0]
+n_test = data_test.shape[0]
 cv = cross_validation.ShuffleSplit(n_samples,
                                    n_iter=3,
                                    test_size=0.3,
                                    random_state=0)
+path_file = '/home/chlau/data/151020_Titanic/'
 
 
 class DataProcess:
@@ -50,6 +61,8 @@ class DataProcess:
         data_age_test = data_age[data_age.Age.isnull()].drop('Age', axis=1)
         self.data.loc[self.data.Age.isnull(), 'Age'] = self.fill_age(
             [data_age_train, data_age_train_label, data_age_test])
+
+    def process_age_2(self):
         bins = [0, 15, 45, 100]
         cats = pd.cut(self.data.Age, bins)
         self.data.Age = cats.labels
@@ -116,14 +129,6 @@ class DataProcess:
         return self.data.drop(['Name', 'Cabin', 'Embarked'], axis=1)
 
 
-def test_data():
-    data = pd.read_csv('data/test.csv')
-    data_f = pd.DataFrame(data, columns=[
-        'Pclass', 'Name', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Cabin', 'Embarked'])
-    return data_f
-data_test = test_data()
-
-
 class TestDataProcess(DataProcess):
 
     """docstring for TestDataProcess"""
@@ -131,12 +136,21 @@ class TestDataProcess(DataProcess):
     def __init__(self):
         DataProcess.__init__(self, data_test)
         self.data = data_test
+        self.data[self.data.Fare.isnull()].Fare = self.data[
+            self.data.Pclass == 3].Fare.median()
 
-    def process_age(self):
-        bins = [0, 15, 45, 100]
-        cats = pd.cut(self.data.Age, bins)
-        self.data.Age = cats.labels
-        self.data.Age = self.scaler.fit_transform(self.data.Age)
+    def process_age(self, new_data):
+        data_age = self.data.drop(['Name', 'Cabin', 'Embarked'], axis=1)
+        data_age_train = data_age[data_age.Age.notnull()]
+        data_age_train_label = data_age_train.Age
+        data_age_train = data_age_train.drop('Age', axis=1)
+        data_age_test = data_age[data_age.Age.isnull()].drop('Age', axis=1)
+        new_data = new_data.drop('Survived', axis=1)
+        data_age_train = pd.concat(
+            [data_age_train, new_data.drop('Age', axis=1)])
+        data_age_train_label = pd.concat([data_age_train_label, new_data.Age])
+        self.data.loc[self.data.Age.isnull(), 'Age'] = self.fill_age(
+            [data_age_train, data_age_train_label, data_age_test])
 
 
 def knn():
@@ -176,18 +190,34 @@ def run_fit(data_train, data_trian_label,
         t0 = time.time()
         clfs[key].fit(data_train, data_trian_label)
         t1 = time.time() - t0
-        joblib.dump(clfs[key], 'save_model/%s.pkl' % key)
+        joblib.dump(
+            clfs[key], '%ssave_model/%s.pkl' % (path_file, key))
         print('%s costs %.3f' % (key, t1))
     print('over')
 
 
-def predict(path):
+def predict(data_test, key):
     t0 = time.time()
-    clf = joblib.load(path)
+    clf = joblib.load('%ssave_model/%s.pkl' % (path_file, key))
     resualt = clf.predict(data_test)
     t1 = time.time() - t0
     print('prediction costs %.3f' % t1)
-    resualt = pd.DataFrame(index=[x + 1 for x in range(28000)],
-                           data={'Label': resualt})
-    resualt.index.name = 'ImageId'
-    resualt.to_csv('%s_resualt.csv' % path)
+    resualt = pd.DataFrame(index=[x + 892 for x in range(n_test)],
+                           data={'Survived': resualt})
+    resualt.index.name = 'PassengerId'
+    resualt.to_csv('%s_resualt.csv' % key)
+
+
+if __name__ == '__main__':
+    train = DataProcess()
+    test = TestDataProcess()
+    train.process_b4_age()
+    train.process_age()
+    test.process_b4_age()
+    test.process_age(train.new_data())
+    train.process_age_2()
+    test.process_age_2()
+    data_train_f = train.new_data().drop('Survived', axis=1)
+    data_train_label_f = train.new_data().Survived
+    data_test_f = test.new_data()
+    run_fit(data_train_f, data_train_label_f)
