@@ -117,7 +117,10 @@ class DataProcess:
 
 
 def test_data():
-    return pd.read_csv('data/test.csv')
+    data = pd.read_csv('data/test.csv')
+    data_f = pd.DataFrame(data, columns=[
+        'Pclass', 'Name', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Cabin', 'Embarked'])
+    return data_f
 data_test = test_data()
 
 
