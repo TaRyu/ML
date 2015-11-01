@@ -1,4 +1,4 @@
-# congding: utf-8
+# coding: utf-8
 # from numba import jit
 import time
 import numpy as np
@@ -8,11 +8,11 @@ from sklearn.utils import shuffle
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.externals import joblib
 
-FTRAIN_LINUX = ''
+FTRAIN_LINUX = '/home/chlau/data/crime/train.csv'
 FTRAIN_WIN = 'C:\\Users\\ChLiu\\Documents\\GitHub\\data\\crime\\train.csv'
-FTEST_LINUX = ''
+FTEST_LINUX = '/home/chlau/data/crime/test.csv'
 FTEST_WIN = 'C:\\Users\\ChLiu\\Documents\\GitHub\\data\\crime\\test.csv'
-FPATH = ''
+FPATH = '/home/chlau/data/crime/'
 
 
 def load(test=False):
@@ -65,14 +65,29 @@ def load(test=False):
     return data, target
 
 
-def run_fit(data_train, data_trian_label):
+def run_fit(data_train, data_trian_label, key):
     clf = RandomForestClassifier(verbose=1)
     t0 = time.time()
     clf.fit(data_train, data_trian_label)
     t1 = time.time() - t0
     joblib.dump(
-        clf, '%ssave_model/%s.pkl' % (FPATH))
-    print('%s costs %.3f' % (t1))
+        clf, '%ssave_model/%s.pkl' % (FPATH, key))
+    print('%s costs %.3f' % (key, t1,))
+
+
+def predict(data_test, key):
+    t0 = time.time()
+    clf = joblib.load('%ssave_model/%s.pkl' % (FPATH, key))
+    resualt = clf.predict(data_test)
+    t1 = time.time() - t0
+    print('prediction costs %.3f' % t1)
+    resualt = pd.DataFrame(data={'Category': resualt})
+    dummies = pd.get_dummies(data['Category'])
+    dummies = dummies.rename(columns=lambda x: str(x))
+    resualt = pd.concat([resualt, dummies], axis=1).drop('Category', axis=1)
+    resualt.index.name = 'Id'
+    resualt.to_csv('%s_resualt.csv' % key)
 
 if __name__ == '__main__':
-    run_fit(load())
+    data, _ = load(True)
+    predict(data, 'rf')
